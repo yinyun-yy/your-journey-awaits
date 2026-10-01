@@ -2,7 +2,7 @@ export class Input {
   constructor(canvas) {
     this.canvas = canvas;
     this.keys = new Set();
-    this.mouse = { down: false, x: 0, y: 0, clickX: 0, clickY: 0, justClicked: false };
+    this.mouse = { down: false, x: 0, y: 0, clickX: 0, clickY: 0, justClicked: false, used: false };
     this.joy = { active: false, x: 0, y: 0, id: null, baseCX: 0, baseCY: 0, maxR: 60 };
     this.boost = false;
     this.btnAttack = false;
@@ -113,6 +113,7 @@ export class Input {
     window.addEventListener('mousemove', (e) => {
       this.mouse.x = e.clientX;
       this.mouse.y = e.clientY;
+      this.mouse.used = true;
     });
     window.addEventListener('mouseup', () => {
       this.mouse.down = false;

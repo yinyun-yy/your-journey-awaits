@@ -123,6 +123,22 @@ await sleep(800);
 await evaljs(`window.dispatchEvent(new KeyboardEvent('keyup',{key:'d'}))`);
 console.log('MOVED      ', await evaljs(`Math.round(window.__game.player.x)`));
 
+console.log('facing test (mouse untouched -> attack follows movement facing)');
+console.log(
+  'FACING     ',
+  await evaljs(
+    `JSON.stringify({aim:window.__game.player.aim.toFixed(2), facingAngle:window.__game.player.facingAngle.toFixed(2), facing:window.__game.player.facing})`
+  )
+);
+await evaljs(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'j'}))`);
+await sleep(120);
+console.log(
+  'SLASH DIR  ',
+  await evaljs(
+    `(() => { const e=window.__game.effects.items.find(x=>x.kind==='slash'); return JSON.stringify({slashAngle:e?e.angle.toFixed(2):null, aim:window.__game.player.aim.toFixed(2)}); })()`
+  )
+);
+
 console.log('attack test (J)');
 await evaljs(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'j'}))`);
 await sleep(200);
@@ -146,7 +162,7 @@ await evaljs(`window.dispatchEvent(new KeyboardEvent('keyup',{key:' '}))`);
 
 console.log('teleport to enemy + fight');
 await evaljs(
-  `(() => { const g=window.__game; const e=g.enemies.find(x=>x.alive&&x.state!=='dead'&&x.kind==='melee'); g.player.x=e.x-60; g.player.y=e.y; g.camera.snapTo(g.player.x, g.player.y); const sx=innerWidth/2+(e.x-g.camera.x)*g.camera.zoom; const sy=innerHeight/2+(e.y-g.camera.y)*g.camera.zoom; g.input.mouse.x=sx; g.input.mouse.y=sy; })()`
+  `(() => { const g=window.__game; const e=g.enemies.find(x=>x.alive&&x.state!=='dead'&&x.kind==='melee'); g.player.x=e.x-60; g.player.y=e.y; g.camera.snapTo(g.player.x, g.player.y); const sx=innerWidth/2+(e.x-g.camera.x)*g.camera.zoom; const sy=innerHeight/2+(e.y-g.camera.y)*g.camera.zoom; g.input.mouse.x=sx; g.input.mouse.y=sy; g.input.mouse.used=true; })()`
 );
 await sleep(600);
 for (let i = 0; i < 6; i++) {
@@ -164,7 +180,7 @@ console.log(
 console.log('test Liora ranged attack');
 await evaljs(`window.__game.player.characterId='liora'`);
 await evaljs(
-  `(() => { const g=window.__game; const e=g.enemies.find(x=>x.alive&&x.state!=='dead'&&x.kind==='melee'); g.player.x=e.x-220; g.player.y=e.y; g.camera.snapTo(g.player.x, g.player.y); const sx=innerWidth/2+(e.x-g.camera.x)*g.camera.zoom; const sy=innerHeight/2+(e.y-g.camera.y)*g.camera.zoom; g.input.mouse.x=sx; g.input.mouse.y=sy; })()`
+  `(() => { const g=window.__game; const e=g.enemies.find(x=>x.alive&&x.state!=='dead'&&x.kind==='melee'); g.player.x=e.x-220; g.player.y=e.y; g.camera.snapTo(g.player.x, g.player.y); const sx=innerWidth/2+(e.x-g.camera.x)*g.camera.zoom; const sy=innerHeight/2+(e.y-g.camera.y)*g.camera.zoom; g.input.mouse.x=sx; g.input.mouse.y=sy; g.input.mouse.used=true; })()`
 );
 await sleep(300);
 await evaljs(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'j'}))`);
@@ -204,12 +220,12 @@ await shot('05-boss');
 console.log('fight boss (invincible + kill)');
 await evaljs(`window.__game.player.invulnT=9999; window.__game.player.hp=100;`);
 await evaljs(
-  `(() => { const g=window.__game; g.player.x=g.boss.x-60; g.player.y=g.boss.y; g.camera.snapTo(g.player.x, g.player.y); const sx=innerWidth/2+(g.boss.x-g.camera.x)*g.camera.zoom; const sy=innerHeight/2+(g.boss.y-g.camera.y)*g.camera.zoom; g.input.mouse.x=sx; g.input.mouse.y=sy; })()`
+  `(() => { const g=window.__game; g.player.x=g.boss.x-60; g.player.y=g.boss.y; g.camera.snapTo(g.player.x, g.player.y); const sx=innerWidth/2+(g.boss.x-g.camera.x)*g.camera.zoom; const sy=innerHeight/2+(g.boss.y-g.camera.y)*g.camera.zoom; g.input.mouse.x=sx; g.input.mouse.y=sy; g.input.mouse.used=true; })()`
 );
 await sleep(400);
 for (let i = 0; i < 45; i++) {
   await evaljs(
-    `(() => { const g=window.__game; const sx=innerWidth/2+(g.boss.x-g.camera.x)*g.camera.zoom; const sy=innerHeight/2+(g.boss.y-g.camera.y)*g.camera.zoom; g.input.mouse.x=sx; g.input.mouse.y=sy; g.player.x=g.boss.x-60; g.player.y=g.boss.y; g.player.invulnT=9999; window.dispatchEvent(new KeyboardEvent('keydown',{key:'j'})); window.dispatchEvent(new KeyboardEvent('keydown',{key:'k'})); window.dispatchEvent(new KeyboardEvent('keydown',{key:'l'})); })()`
+    `(() => { const g=window.__game; const sx=innerWidth/2+(g.boss.x-g.camera.x)*g.camera.zoom; const sy=innerHeight/2+(g.boss.y-g.camera.y)*g.camera.zoom; g.input.mouse.x=sx; g.input.mouse.y=sy; g.input.mouse.used=true; g.player.x=g.boss.x-60; g.player.y=g.boss.y; g.player.invulnT=9999; window.dispatchEvent(new KeyboardEvent('keydown',{key:'j'})); window.dispatchEvent(new KeyboardEvent('keydown',{key:'k'})); window.dispatchEvent(new KeyboardEvent('keydown',{key:'l'})); })()`
   );
   await sleep(260);
 }
@@ -385,6 +401,12 @@ const joyMoved = await evaljs(
 );
 await sleep(800);
 console.log('JOY MOVED  ', await evaljs(`JSON.stringify({x:Math.round(window.__game.player.x), prev:` + joyMoved + `})`));
+console.log(
+  'TOUCH FACE ',
+  await evaljs(
+    `JSON.stringify({aim:window.__game.player.aim.toFixed(2), facingAngle:window.__game.player.facingAngle.toFixed(2), facing:window.__game.player.facing})`
+  )
+);
 await evaljs(`(() => { const z=document.getElementById('joy-zone'); z.dispatchEvent(new PointerEvent('pointerup',{bubbles:true})); })()`);
 
 await send('Emulation.setTouchEmulationEnabled', { enabled: false });

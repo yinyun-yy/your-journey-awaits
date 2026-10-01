@@ -11,6 +11,7 @@ export class Player {
     this.r = CONFIG.player.r;
     this.facing = 1;
     this.aim = 0;
+    this.facingAngle = 0;
     this.name = '旅行者';
     this.characterId = 'aster';
     this.reset();
@@ -218,29 +219,24 @@ export class Player {
   }
 
   updateAim(dt, input, game) {
-    if (input.isTouch) {
-      let nearest = null;
-      let bd = 420;
-      for (const e of game.enemies) {
-        if (!e.alive || e.state === 'dead') continue;
-        const d = dist(this.x, this.y, e.x, e.y);
-        if (d < bd) {
-          bd = d;
-          nearest = e;
-        }
+    const mv = input.moveVector();
+    if (mv.x !== 0 || mv.y !== 0) {
+      const moveAngle = Math.atan2(mv.y, mv.x);
+      if (input.isTouch) {
+        this.facingAngle = moveAngle;
+      } else if (!input.mouse.used) {
+        this.facingAngle = moveAngle;
       }
-      if (nearest) {
-        this.aim = angleTo(this.x, this.y, nearest.x, nearest.y);
-      } else {
-        const mv = input.moveVector();
-        if (mv.x !== 0 || mv.y !== 0) this.aim = Math.atan2(mv.y, mv.x);
-      }
-      this.facing = Math.cos(this.aim) < -0.2 ? -1 : this.facing;
-    } else {
-      this.aim = angleTo(this.x, this.y, game.mouseWX, game.mouseWY);
-      if (game.mouseWX < this.x) this.facing = -1;
-      else this.facing = 1;
     }
+    if (input.isTouch) {
+      this.aim = this.facingAngle;
+    } else if (input.mouse.used) {
+      this.aim = angleTo(this.x, this.y, game.mouseWX, game.mouseWY);
+      this.facingAngle = this.aim;
+    } else {
+      this.aim = this.facingAngle;
+    }
+    this.facing = Math.cos(this.aim) < -0.2 ? -1 : 1;
   }
 
   tryAttack(game) {
@@ -398,6 +394,34 @@ export class Player {
     }
   }
 
+  drawFacingIndicator(ctx) {
+    const a = this.aim;
+    const attacking = this.attackT >= 0 || this.dashT > 0;
+    const k = attacking ? 1.25 : 1;
+    const d = 44 * k;
+    const ax = this.x + Math.cos(a) * d;
+    const ay = this.y + Math.sin(a) * d;
+    const color = this.characterId === 'aster' ? '#7dffe0' : '#c8baff';
+
+    ctx.save();
+    ctx.translate(ax, ay);
+    ctx.rotate(a);
+    ctx.globalAlpha = attacking ? 0.95 : 0.6;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(11 * k, 0);
+    ctx.lineTo(-7 * k, 8 * k);
+    ctx.lineTo(-2 * k, 0);
+    ctx.lineTo(-7 * k, -8 * k);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
   draw(ctx, time) {
     const draw = CHARACTER_DRAW[this.characterId];
     const blink = this.blink > 0 ? Math.abs(Math.sin((1 - this.blink / 0.14) * Math.PI)) : 0;
@@ -407,6 +431,11 @@ export class Player {
     }
     if (this.state === 'dead') rot = 0;
     const invulnBlink = this.invulnT > 0 && !this.dead && Math.floor(time * 14) % 2 === 0;
+
+    if (!this.dead) {
+      this.drawFacingIndicator(ctx);
+    }
+
     ctx.save();
     if (invulnBlink) ctx.globalAlpha = 0.45;
     draw(ctx, {
