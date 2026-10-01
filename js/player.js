@@ -12,6 +12,7 @@ export class Player {
     this.facing = 1;
     this.aim = 0;
     this.facingAngle = 0;
+    this.lockTarget = null;
     this.name = '旅行者';
     this.characterId = 'aster';
     this.reset();
@@ -28,6 +29,7 @@ export class Player {
   reset() {
     this.hp = CONFIG.player.hpMax;
     this.stamina = CONFIG.player.staminaMax;
+    this.lockTarget = null;
     this.animT = rand(TAU);
     this.blinkT = rand(2, 5);
     this.blink = 0;
@@ -219,6 +221,14 @@ export class Player {
   }
 
   updateAim(dt, input, game) {
+    if (
+      this.lockTarget &&
+      (!this.lockTarget.alive ||
+        this.lockTarget.state === 'dead' ||
+        dist(this.x, this.y, this.lockTarget.x, this.lockTarget.y) > 560)
+    ) {
+      this.lockTarget = null;
+    }
     const mv = input.moveVector();
     if (mv.x !== 0 || mv.y !== 0) {
       const moveAngle = Math.atan2(mv.y, mv.x);
@@ -228,7 +238,10 @@ export class Player {
         this.facingAngle = moveAngle;
       }
     }
-    if (input.isTouch) {
+    if (this.lockTarget) {
+      this.aim = angleTo(this.x, this.y, this.lockTarget.x, this.lockTarget.y);
+      this.facingAngle = this.aim;
+    } else if (input.isTouch) {
       this.aim = this.facingAngle;
     } else if (input.mouse.used) {
       this.aim = angleTo(this.x, this.y, game.mouseWX, game.mouseWY);
@@ -237,6 +250,37 @@ export class Player {
       this.aim = this.facingAngle;
     }
     this.facing = Math.cos(this.aim) < -0.2 ? -1 : 1;
+  }
+
+  findLockTarget(game, preferMouse) {
+    let target = null;
+    if (preferMouse && game.input.mouse.used && !game.input.isTouch) {
+      const mouseA = angleTo(this.x, this.y, game.mouseWX, game.mouseWY);
+      let bestDiff = 1.05;
+      for (const e of game.enemies) {
+        if (!e.alive || e.state === 'dead') continue;
+        const d = dist(this.x, this.y, e.x, e.y);
+        if (d > 520) continue;
+        const ea = angleTo(this.x, this.y, e.x, e.y);
+        let diff = Math.abs(ea - mouseA);
+        if (diff > Math.PI) diff = TAU - diff;
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          target = e;
+        }
+      }
+      return target;
+    }
+    let bd = 520;
+    for (const e of game.enemies) {
+      if (!e.alive || e.state === 'dead') continue;
+      const d = dist(this.x, this.y, e.x, e.y);
+      if (d < bd) {
+        bd = d;
+        target = e;
+      }
+    }
+    return target;
   }
 
   tryAttack(game) {
@@ -275,17 +319,27 @@ export class Player {
 
   fireStar(game) {
     const cfg = this.skills.attack;
+    const target = this.findLockTarget(game, true);
+    const a = target ? angleTo(this.x, this.y, target.x, target.y) : this.aim;
     game.projectiles.add({
       type: 0,
-      x: this.x + Math.cos(this.aim) * 24,
-      y: this.y - 14 + Math.sin(this.aim) * 24,
-      vx: Math.cos(this.aim) * cfg.speed,
-      vy: Math.sin(this.aim) * cfg.speed,
+      x: this.x + Math.cos(a) * 24,
+      y: this.y - 14 + Math.sin(a) * 24,
+      vx: Math.cos(a) * cfg.speed,
+      vy: Math.sin(a) * cfg.speed,
       r: cfg.size,
       dmg: cfg.dmg,
       from: 'player',
-      life: 1.4,
+      life: target ? 2.4 : 1.4,
+      target,
+      turnRate: target ? 9 : 0,
     });
+    if (target) {
+      this.lockTarget = target;
+      this.aim = a;
+      this.facingAngle = a;
+      this.facing = Math.cos(a) < -0.2 ? -1 : 1;
+    }
     game.audio.ranged();
   }
 
@@ -303,20 +357,12 @@ export class Player {
       const cfg = this.skills.skill1;
       let tx;
       let ty;
+      let target = null;
       if (game.input.isTouch) {
-        let nearest = null;
-        let bd = 420;
-        for (const e of game.enemies) {
-          if (!e.alive || e.state === 'dead') continue;
-          const d = dist(this.x, this.y, e.x, e.y);
-          if (d < bd) {
-            bd = d;
-            nearest = e;
-          }
-        }
-        if (nearest) {
-          tx = nearest.x;
-          ty = nearest.y;
+        target = this.findLockTarget(game, false);
+        if (target) {
+          tx = target.x;
+          ty = target.y;
         } else {
           tx = this.x + Math.cos(this.aim) * cfg.maxDist;
           ty = this.y + Math.sin(this.aim) * cfg.maxDist;
@@ -343,7 +389,15 @@ export class Player {
         tx: px,
         ty: py,
         radius: cfg.radius,
+        target,
+        turnRate: target ? 8 : 0,
       });
+      if (target) {
+        this.lockTarget = target;
+        this.aim = a;
+        this.facingAngle = a;
+        this.facing = Math.cos(a) < -0.2 ? -1 : 1;
+      }
       game.audio.skill1();
       game.camera.shake(0.12);
     }

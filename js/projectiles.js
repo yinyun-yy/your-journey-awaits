@@ -1,4 +1,4 @@
-import { TAU, rand } from './utils.js';
+import { TAU, rand, clamp } from './utils.js';
 
 const P_ORB = 0;
 const P_STARFALL = 1;
@@ -23,6 +23,9 @@ export class Projectiles {
         tx: 0, ty: 0,
         trail: 0,
         boss: false,
+        target: null,
+        turnRate: 0,
+        spd: 0,
       });
     }
     this.cursor = 0;
@@ -48,6 +51,9 @@ export class Projectiles {
     p.trail = 0;
     p.boss = !!props.boss;
     p.rot = props.rot !== undefined ? props.rot : rand(TAU);
+    p.target = props.target || null;
+    p.turnRate = props.turnRate || 0;
+    p.spd = Math.hypot(p.vx, p.vy);
     return p;
   }
 
@@ -58,6 +64,22 @@ export class Projectiles {
       if (p.life <= 0) {
         p.active = false;
         continue;
+      }
+      if (p.turnRate > 0 && p.target && p.target.alive && p.target.state !== 'dead') {
+        const want = Math.atan2(p.target.y - p.y, p.target.x - p.x);
+        const cur = Math.atan2(p.vy, p.vx);
+        let diff = want - cur;
+        while (diff > Math.PI) diff -= TAU;
+        while (diff < -Math.PI) diff += TAU;
+        const turn = clamp(diff, -p.turnRate * dt, p.turnRate * dt);
+        const na = cur + turn;
+        p.vx = Math.cos(na) * p.spd;
+        p.vy = Math.sin(na) * p.spd;
+        p.rot = na;
+        if (p.type === P_STARFALL) {
+          p.tx = p.target.x;
+          p.ty = p.target.y;
+        }
       }
       p.x += p.vx * dt;
       p.y += p.vy * dt;

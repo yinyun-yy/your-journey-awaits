@@ -177,18 +177,35 @@ console.log(
   )
 );
 
-console.log('test Liora ranged attack');
+console.log('test Liora homing attack (projectile follows moving enemy)');
 await evaljs(`window.__game.player.characterId='liora'`);
 await evaljs(
   `(() => { const g=window.__game; const e=g.enemies.find(x=>x.alive&&x.state!=='dead'&&x.kind==='melee'); g.player.x=e.x-220; g.player.y=e.y; g.camera.snapTo(g.player.x, g.player.y); const sx=innerWidth/2+(e.x-g.camera.x)*g.camera.zoom; const sy=innerHeight/2+(e.y-g.camera.y)*g.camera.zoom; g.input.mouse.x=sx; g.input.mouse.y=sy; g.input.mouse.used=true; })()`
 );
 await sleep(300);
 await evaljs(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'j'}))`);
-await sleep(800);
+await sleep(120);
+console.log(
+  'HOMING     ',
+  await evaljs(
+    `(() => { const p=window.__game.projectiles.items.find(p=>p.active&&p.from==='player'); return JSON.stringify({hasTarget:!!(p&&p.target), turnRate:p?p.turnRate:0, aim:window.__game.player.aim.toFixed(2)}); })()`
+  )
+);
+await evaljs(
+  `(() => { const g=window.__game; const e=g.enemies.find(x=>x.alive&&x.state!=='dead'&&x.kind==='melee'); e.y += 90; })()`
+);
+await sleep(250);
+console.log(
+  'CURVED     ',
+  await evaljs(
+    `(() => { const p=window.__game.projectiles.items.find(p=>p.active&&p.from==='player'); return JSON.stringify({vy:p?Math.round(p.vy):null, active:!!p}); })()`
+  )
+);
+await sleep(700);
 console.log(
   'RANGED     ',
   await evaljs(
-    `JSON.stringify({proj:window.__game.projectiles.items.filter(p=>p.active).length, kills:window.__game.player.kills, targets:window.__game.enemies.filter(x=>x.alive&&x.state!=='dead'&&x.kind==='melee').map(e=>Math.round(e.hp))})`
+    `JSON.stringify({kills:window.__game.player.kills, targets:window.__game.enemies.filter(x=>x.alive&&x.state!=='dead'&&x.kind==='melee').map(e=>Math.round(e.hp))})`
   )
 );
 
