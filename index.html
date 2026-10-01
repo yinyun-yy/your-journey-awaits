@@ -22,12 +22,19 @@
     <div class="name-row">
       <span id="hud-name">旅行者</span>
       <span class="stage-chip">起源之地</span>
+      <span class="stage-chip enemy-chip" id="hud-enemies">👾 0/0</span>
     </div>
     <div class="bar hp-bar"><span class="bar-ico">❤</span><div id="hud-hp-fill" class="fill hp-fill"></div></div>
     <div class="bar st-bar"><span class="bar-ico">⚡</span><div id="hud-stamina-fill" class="fill st-fill"></div></div>
   </div>
   <div id="hud-right">
-    <div class="glass hud-coins" id="hud-coins">🪙 0</div>
+    <div class="hud-right-col">
+      <div class="glass hud-coins" id="hud-coins">🪙 0</div>
+      <button id="btn-pet" class="icon-btn glass pet-btn" aria-label="切换宠物">
+        <span id="pet-emoji">🐹</span>
+        <span id="pet-count" class="pet-count">1/10</span>
+      </button>
+    </div>
     <button id="btn-pause" class="icon-btn glass" aria-label="暂停">⏸</button>
   </div>
 
@@ -161,7 +168,7 @@
       <div class="stat"><b id="v-kills">0</b><span>击败敌人</span></div>
       <div class="stat"><b id="v-coins">0</b><span>金币</span></div>
       <div class="stat"><b id="v-score">0</b><span>得分</span></div>
-      <div class="stat"><b id="v-best">—</b><span>最快纪录</span></div>
+      <div class="stat"><b id="v-pets">1/10</b><span>宠物收集</span></div>
       <div class="stat"><b id="v-name">—</b><span>旅人</span></div>
     </div>
     <div class="btn-col">

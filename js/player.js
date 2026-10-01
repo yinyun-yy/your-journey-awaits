@@ -1,6 +1,7 @@
 import { CONFIG, SKILLS, CHARACTERS } from './config.js';
 import { TAU, clamp, dist, angleTo, rand } from './utils.js';
 import { CHARACTER_DRAW } from './characters.js';
+import { storage } from './storage.js';
 
 export class Player {
   constructor() {
@@ -15,7 +16,24 @@ export class Player {
     this.lockTarget = null;
     this.name = '旅行者';
     this.characterId = 'aster';
+    this.pets = storage.getPets();
+    this.petIndex = Math.min(storage.getPetIndex(), this.pets.length - 1);
     this.reset();
+  }
+
+  collectPet(id) {
+    if (this.pets.includes(id)) return false;
+    this.pets.push(id);
+    storage.setPets(this.pets);
+    this.petIndex = this.pets.length - 1;
+    storage.setPetIndex(this.petIndex);
+    return true;
+  }
+
+  cyclePet() {
+    if (this.pets.length < 2) return;
+    this.petIndex = (this.petIndex + 1) % this.pets.length;
+    storage.setPetIndex(this.petIndex);
   }
 
   get character() {

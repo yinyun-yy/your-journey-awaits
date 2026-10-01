@@ -5,6 +5,8 @@ const KEYS = {
   clears: 'yja_clears',
   bgm: 'yja_bgm',
   sfx: 'yja_sfx',
+  pets: 'yja_pets',
+  petIndex: 'yja_pet_index',
 };
 
 function get(key, def) {
@@ -44,6 +46,13 @@ export const storage = {
   getSfx: () => get(KEYS.sfx, true),
   setBgm: (v) => set(KEYS.bgm, v),
   setSfx: (v) => set(KEYS.sfx, v),
+  getPets: () => {
+    const v = get(KEYS.pets, null);
+    return Array.isArray(v) && v.length ? v : ['hamster'];
+  },
+  setPets: (v) => set(KEYS.pets, v),
+  getPetIndex: () => get(KEYS.petIndex, 0),
+  setPetIndex: (v) => set(KEYS.petIndex, v),
   resetAll() {
     try {
       Object.values(KEYS).forEach((k) => localStorage.removeItem(k));

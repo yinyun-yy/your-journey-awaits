@@ -1,11 +1,12 @@
 import { CHARACTERS, SKILLS, LEVELS } from './config.js';
 import { formatTime } from './utils.js';
 import { storage, validateName } from './storage.js';
+import { petById } from './pets.js';
 
 export class UI {
   constructor(game) {
     this.game = game;
-    this.cache = { hp: -1, stamina: -1, coins: -1, s1: -1, s2: -1, atk: -1, bossHp: -1 };
+    this.cache = { hp: -1, stamina: -1, coins: -1, s1: -1, s2: -1, atk: -1, bossHp: -1, pet: -1, petCount: -1, enemies: -1 };
     this.dmgTimer = null;
     this.pendingChar = null;
     this.bind();
@@ -74,6 +75,17 @@ export class UI {
     });
     this.el('set-sfx').addEventListener('change', (e) => {
       if (this.game.audio) this.game.audio.setSfx(e.target.checked);
+    });
+    this.el('btn-pet').addEventListener('click', () => {
+      const p = this.game.player;
+      p.cyclePet();
+      if (this.game.pet) this.game.pet.sparkle();
+      if (this.game.audio) this.game.audio.click();
+      const def = petById(p.pets[p.petIndex]);
+      if (this.game.texts) {
+        this.game.texts.add(p.x, p.y - 78, def.emoji + ' ' + def.name, '#ffe9a0', 15, 1.1);
+      }
+      this.cache.pet = -1;
     });
   }
 
@@ -262,14 +274,15 @@ export class UI {
     this.el('hud').classList.add('hidden');
     this.el('victory').classList.remove('hidden');
     this.el('v-title').textContent = '关卡完成';
-    this.el('v-sub').textContent = '起源之地 · 探索完成';
+    const best = storage.getBestTime();
+    this.el('v-sub').textContent =
+      '起源之地 · 探索完成 · 最快通关 ' + (best !== null ? formatTime(best) : '—');
     this.el('v-name').textContent = player.name;
     this.el('v-time').textContent = formatTime(clearTime);
     this.el('v-kills').textContent = player.kills;
     this.el('v-coins').textContent = player.coins;
     this.el('v-score').textContent = score;
-    const best = storage.getBestTime();
-    this.el('v-best').textContent = best !== null ? formatTime(best) : '—';
+    this.el('v-pets').textContent = player.pets.length + '/10';
     this.el('v-record').classList.toggle('hidden', !isBest);
     if (this.game.audio) this.game.audio.victory();
   }
@@ -345,6 +358,22 @@ export class UI {
     if (c.coins !== p.coins) {
       c.coins = p.coins;
       this.el('hud-coins').textContent = '🪙 ' + p.coins;
+    }
+
+    if (c.pet !== p.petIndex || c.petCount !== p.pets.length) {
+      c.pet = p.petIndex;
+      c.petCount = p.pets.length;
+      const def = petById(p.pets[p.petIndex]);
+      this.el('pet-emoji').textContent = def.emoji;
+      this.el('pet-count').textContent = p.pets.length + '/10';
+    }
+
+    const rem = game.remainingEnemies();
+    const total = game.totalEnemies();
+    if (c.enemies !== rem) {
+      c.enemies = rem;
+      this.el('hud-enemies').textContent = '👾 ' + rem + '/' + total;
+      this.el('hud-enemies').classList.toggle('done', rem === 0);
     }
 
     const s1 = Math.ceil(p.skill1Cd * 10);

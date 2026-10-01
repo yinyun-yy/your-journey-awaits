@@ -9,6 +9,7 @@ import { Camera } from './camera.js';
 import { Particles, Texts } from './particles.js';
 import { storage } from './storage.js';
 import { drawAster, drawLiora } from './characters.js';
+import { Pet, PETS } from './pets.js';
 
 export class Game {
   constructor() {
@@ -32,6 +33,8 @@ export class Game {
     this.mouseWX = 0;
     this.mouseWY = 0;
     this.ambientT = 0;
+    this.clearHintT = 6;
+    this.pet = new Pet();
     this.input = null;
     this.audio = null;
     this.ui = null;
@@ -85,8 +88,10 @@ export class Game {
     this.buildLevel();
     this.score = 0;
     this.time = 0;
+    this.clearHintT = 6;
     this.camera.snapTo(this.player.x, this.player.y);
     this.camera.zoomTarget = CONFIG.zoom.base;
+    this.pet.init(this.player);
     this.state = 'playing';
   }
 
@@ -150,6 +155,29 @@ export class Game {
     }
   }
 
+  remainingEnemies() {
+    let n = 0;
+    for (const e of this.enemies) {
+      if (e.kind !== 'boss' && e.alive && e.state !== 'dead') n++;
+    }
+    return n;
+  }
+
+  totalEnemies() {
+    let n = 0;
+    for (const e of this.enemies) {
+      if (e.kind !== 'boss') n++;
+    }
+    return n;
+  }
+
+  randomUnownedPet() {
+    const owned = this.player.pets;
+    const pool = PETS.filter((p) => !owned.includes(p.id));
+    if (!pool.length) return null;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
   killEnemy(e) {
     e.state = 'dead';
     this.player.kills++;
@@ -162,9 +190,19 @@ export class Game {
       this.bossDead = true;
       this.bossClearT = 1.4;
       this.texts.add(e.x, e.y - e.r - 30, '遗迹守卫倒下了！', '#ffe9a0', 24, 1.8);
+      const pet = this.randomUnownedPet();
+      if (pet) this.treasure.dropPet(e.x + rand(-30, 30), e.y + rand(-20, 20), pet.id);
+      else this.treasure.dropCoin(e.x, e.y, 6);
     } else {
       this.treasure.dropCoin(e.x, e.y, Math.max(1, Math.round(e.cfg.coin / 2)));
       if (Math.random() < 0.3) this.treasure.dropHeart(e.x, e.y);
+      if (Math.random() < 0.3) {
+        const pet = this.randomUnownedPet();
+        if (pet) this.treasure.dropPet(e.x + rand(-14, 14), e.y + rand(-14, 14), pet.id);
+      }
+      if (this.bossDead && !this.map.exitOpen && this.remainingEnemies() === 0) {
+        this.texts.add(e.x, e.y - e.r - 20, '怪物清理完毕！', '#ffe9a0', 16, 1.4);
+      }
     }
   }
 
@@ -275,6 +313,7 @@ export class Game {
     this.mouseWY = this.camera.y + (this.input.mouse.y - view.h / 2) / z;
 
     this.player.update(dt, this.input, this.map, this);
+    this.pet.update(dt, this.player);
     this.camera.follow(
       this.player.x + this.player.vx * CONFIG.camera.lead,
       this.player.y + this.player.vy * CONFIG.camera.lead,
@@ -311,17 +350,30 @@ export class Game {
       this.bossClearT -= dt;
       if (this.bossClearT <= 0) {
         this.map.gateClosed = false;
-        this.map.exitOpen = true;
-        this.texts.add(this.exitPos.x, this.exitPos.y - 40, '出口已开启！', '#bff8ff', 22, 1.8);
-        if (this.audio) {
-          this.audio.gateOpen();
-          this.audio.victory();
+        const rem = this.remainingEnemies();
+        if (this.audio) this.audio.gateOpen();
+        if (rem === 0) {
+          this.openExit();
+        } else {
+          if (this.ui) {
+            this.ui.banner('遗迹守卫已倒下', '还有 ' + rem + ' 名敌人潜藏在地图中');
+            this.ui.hideBossBar();
+          }
+          this.texts.add(this.player.x, this.player.y - 70, '清光所有怪物，出口才会开启！', '#ffb04a', 18, 2.2);
         }
-        if (this.ui) {
-          this.ui.banner('挑战完成', '遗迹守卫已被击败，出口开启了！');
-          this.ui.hideBossBar();
+      }
+    }
+
+    if (this.bossDead && !this.map.exitOpen) {
+      const rem = this.remainingEnemies();
+      if (rem === 0) {
+        this.openExit();
+      } else {
+        this.clearHintT -= dt;
+        if (this.clearHintT <= 0) {
+          this.clearHintT = 6;
+          this.texts.add(this.player.x, this.player.y - 70, '还剩 ' + rem + ' 名敌人…（跟着红色箭头找）', '#ff8a7a', 16, 1.8);
         }
-        this.particles.sparks(this.exitPos.x, this.exitPos.y, '#bff8ff', 30, 260);
       }
     }
 
@@ -332,6 +384,21 @@ export class Game {
     }
 
     if (this.ui) this.ui.updateHud(this);
+  }
+
+  openExit() {
+    if (this.map.exitOpen) return;
+    this.map.exitOpen = true;
+    this.texts.add(this.exitPos.x, this.exitPos.y - 40, '出口已开启！', '#bff8ff', 22, 1.8);
+    if (this.audio) {
+      this.audio.gateOpen();
+      this.audio.victory();
+    }
+    if (this.ui) {
+      this.ui.banner('挑战完成', '所有敌人已清除，出口开启了！');
+      this.ui.hideBossBar();
+    }
+    this.particles.sparks(this.exitPos.x, this.exitPos.y, '#bff8ff', 30, 260);
   }
 
   checkArenaTrigger() {
@@ -510,6 +577,9 @@ export class Game {
 
     this.projectiles.draw(ctx, this.time);
     this.effects.draw(ctx);
+    if (this.state === 'playing' || this.state === 'victory') {
+      this.pet.draw(ctx, this.time, this.player);
+    }
     this.player.draw(ctx, this.time);
     this.particles.draw(ctx);
     this.texts.draw(ctx);
@@ -518,7 +588,60 @@ export class Game {
     this.drawSignpostPrompts(ctx);
 
     ctx.restore();
+    this.drawEnemyIndicators(ctx, view);
     this.drawVignette(ctx, w, h);
+  }
+
+  drawEnemyIndicators(ctx, view) {
+    if (this.state !== 'playing') return;
+    const w = view.w;
+    const h = view.h;
+    const z = this.camera.zoom;
+    const px = w / 2 + (this.player.x - this.camera.x) * z;
+    const py = h / 2 + (this.player.y - this.camera.y) * z;
+    const m = 30;
+    for (const e of this.enemies) {
+      if (!e.alive || e.state === 'dead') continue;
+      if (e === this.boss && !this.bossActivated && !this.bossDead) continue;
+      const sx = w / 2 + (e.x - this.camera.x) * z;
+      const sy = h / 2 + (e.y - this.camera.y) * z;
+      if (sx >= m && sx <= w - m && sy >= m && sy <= h - m) continue;
+      const dx = sx - px;
+      const dy = sy - py;
+      const len = Math.hypot(dx, dy);
+      if (len < 1) continue;
+      let best = Infinity;
+      if (dx !== 0) {
+        best = Math.min(best, (m - px) / dx > 0 ? (m - px) / dx : Infinity);
+        best = Math.min(best, (w - m - px) / dx > 0 ? (w - m - px) / dx : Infinity);
+      }
+      if (dy !== 0) {
+        best = Math.min(best, (m - py) / dy > 0 ? (m - py) / dy : Infinity);
+        best = Math.min(best, (h - m - py) / dy > 0 ? (h - m - py) / dy : Infinity);
+      }
+      if (!isFinite(best)) continue;
+      const bx = px + dx * best;
+      const by = py + dy * best;
+      const ang = Math.atan2(dy, dx);
+      const boss = e.kind === 'boss';
+      const pulse = 1 + Math.sin(this.time * 6) * 0.15;
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.rotate(ang);
+      ctx.fillStyle = boss ? 'rgba(255,60,40,0.95)' : 'rgba(255,70,60,0.85)';
+      ctx.beginPath();
+      const s = (boss ? 20 : 14) * pulse;
+      ctx.moveTo(s, 0);
+      ctx.lineTo(-8, 8);
+      ctx.lineTo(-4, 0);
+      ctx.lineTo(-8, -8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   drawSignpostPrompts(ctx) {

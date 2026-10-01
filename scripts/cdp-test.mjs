@@ -234,6 +234,19 @@ console.log(
 );
 await shot('05-boss');
 
+console.log('boss attack test (contact damage)');
+await evaljs(`window.__game.player.invulnT=0; window.__game.player.hp=100;`);
+await evaljs(
+  `(() => { const g=window.__game; g.player.x=g.boss.x-55; g.player.y=g.boss.y; })()`
+);
+await sleep(1500);
+console.log(
+  'BOSS HIT   ',
+  await evaljs(
+    `JSON.stringify({hp:Math.round(window.__game.player.hp), bossPattern:window.__game.boss.pattern})`
+  )
+);
+
 console.log('fight boss (invincible + kill)');
 await evaljs(`window.__game.player.invulnT=9999; window.__game.player.hp=100;`);
 await evaljs(
@@ -250,10 +263,48 @@ await sleep(2200);
 console.log(
   'BOSS DEAD  ',
   await evaljs(
-    `JSON.stringify({bossDead:window.__game.bossDead, exitOpen:window.__game.map.exitOpen, gate:window.__game.map.gateClosed, bossHp:window.__game.boss.hp, kills:window.__game.player.kills, coins:window.__game.player.coins})`
+    `JSON.stringify({bossDead:window.__game.bossDead, exitOpen:window.__game.map.exitOpen, gate:window.__game.map.gateClosed, bossHp:window.__game.boss.hp, remaining:window.__game.remainingEnemies(), kills:window.__game.player.kills, coins:window.__game.player.coins, pets:window.__game.player.pets.length})`
   )
 );
 await shot('06-boss-dead');
+
+console.log('clear-all condition test (exit stays closed while enemies remain)');
+console.log(
+  'EXIT CLOSED',
+  await evaljs(`JSON.stringify({exitOpen:window.__game.map.exitOpen, remaining:window.__game.remainingEnemies(), hud:document.getElementById('hud-enemies').textContent})`)
+);
+
+console.log('pet system test (drop + collect)');
+await evaljs(
+  `(() => { const g=window.__game; const p=g.player; const id=p.pets.includes('cat')?'dog':'cat'; g.treasure.dropPet(g.player.x+20, g.player.y, id); })()`
+);
+await sleep(1500);
+console.log(
+  'PET GOT    ',
+  await evaljs(
+    `JSON.stringify({pets:window.__game.player.pets, idx:window.__game.player.petIndex, saved:JSON.parse(localStorage.getItem('yja_pets')), hud:document.getElementById('pet-emoji').textContent, count:document.getElementById('pet-count').textContent})`
+  )
+);
+await evaljs(`document.getElementById('btn-pet').click()`);
+await sleep(300);
+console.log(
+  'PET CYCLE  ',
+  await evaljs(
+    `JSON.stringify({idx:window.__game.player.petIndex, emoji:document.getElementById('pet-emoji').textContent, savedIdx:JSON.parse(localStorage.getItem('yja_pet_index'))})`
+  )
+);
+
+console.log('kill all remaining enemies');
+await evaljs(
+  `(() => { const g=window.__game; g.enemies.filter(e=>e.kind!=='boss'&&e.alive&&e.state!=='dead').forEach(e=>{ e.state='dead'; e.alive=true; g.player.kills++; }); })()`
+);
+await sleep(1500);
+console.log(
+  'ALL CLEAR  ',
+  await evaljs(
+    `JSON.stringify({exitOpen:window.__game.map.exitOpen, remaining:window.__game.remainingEnemies(), hud:document.getElementById('hud-enemies').textContent})`
+  )
+);
 
 console.log('walk to exit');
 await evaljs(
@@ -264,7 +315,7 @@ console.log('VICTORY    ', await state());
 console.log(
   'VICTORY UI ',
   await evaljs(
-    `JSON.stringify({shown:!document.getElementById('victory').classList.contains('hidden'), title:document.getElementById('v-title').textContent, time:document.getElementById('v-time').textContent, kills:document.getElementById('v-kills').textContent, coins:document.getElementById('v-coins').textContent, best:document.getElementById('v-best').textContent})`
+    `JSON.stringify({shown:!document.getElementById('victory').classList.contains('hidden'), title:document.getElementById('v-title').textContent, time:document.getElementById('v-time').textContent, kills:document.getElementById('v-kills').textContent, coins:document.getElementById('v-coins').textContent, pets:document.getElementById('v-pets').textContent})`
   )
 );
 await shot('07-victory');

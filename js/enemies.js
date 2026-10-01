@@ -36,6 +36,9 @@ export class Enemy {
     this.volleyT = 0;
     this.slamWindup = 0;
     this.shockWindup = 0;
+    this.contactCd = 0;
+    this.chargeT = 0;
+    this.chargeA = 0;
   }
 
   spawn(tx, ty) {
@@ -59,6 +62,11 @@ export class Enemy {
     this.volleyN = 0;
     this.attackCd = rand(0.4, 1);
     this.animT = rand(TAU);
+    this.contactCd = 0;
+    this.chargeT = 0;
+    this.chargeA = 0;
+    this.slamWindup = 0;
+    this.shockWindup = 0;
   }
 
   get dmgTaken() {
@@ -213,20 +221,43 @@ export class Enemy {
   }
 
   bossBehavior(dt, player, game) {
-    this.patternT -= dt;
     const spd = this.phase === 2 ? this.cfg.speed2 : this.cfg.speed;
     const a = angleTo(this.x, this.y, player.x, player.y);
     const d = dist(this.x, this.y, player.x, player.y);
 
+    if (this.contactCd > 0) this.contactCd -= dt;
+    if (d < this.r + player.r + 10 && this.contactCd <= 0 && player.state !== 'dead') {
+      this.contactCd = 1.0;
+      if (!player.dodging) game.hitPlayer(this.cfg.dmg, this.x, this.y);
+      const ka = a + Math.PI;
+      player.vx += Math.cos(ka) * 280;
+      player.vy += Math.sin(ka) * 280;
+    }
+
     if (this.pattern === 'chase') {
+      this.nextPatternAt -= dt;
       if (this.nextPatternAt <= 0) {
         this.pattern = 'slam';
-        this.slamWindup = 0.9;
+        this.slamWindup = this.phase === 2 ? 0.6 : 0.9;
         this.attackCd = 1.6;
-        this.nextPatternAt = 0;
-      } else if (d > 70) {
-        this.vx += (Math.cos(a) * spd - this.vx) * (1 - Math.exp(-dt * 3.5));
-        this.vy += (Math.sin(a) * spd - this.vy) * (1 - Math.exp(-dt * 3.5));
+      } else {
+        if (this.phase === 2 && d > 280 && Math.random() < dt * 0.5) {
+          this.pattern = 'charge';
+          this.chargeT = 0.75;
+          this.chargeA = a;
+        } else if (d > 80) {
+          this.vx += (Math.cos(a) * spd - this.vx) * (1 - Math.exp(-dt * 3.5));
+          this.vy += (Math.sin(a) * spd - this.vy) * (1 - Math.exp(-dt * 3.5));
+        }
+      }
+    } else if (this.pattern === 'charge') {
+      this.chargeT -= dt;
+      const cs = spd * 2.7;
+      this.vx += (Math.cos(this.chargeA) * cs - this.vx) * (1 - Math.exp(-dt * 8));
+      this.vy += (Math.sin(this.chargeA) * cs - this.vy) * (1 - Math.exp(-dt * 8));
+      if (this.chargeT <= 0) {
+        this.pattern = 'chase';
+        this.nextPatternAt = this.phase === 2 ? 1.2 : 2.0;
       }
     } else if (this.pattern === 'slam') {
       if (this.slamWindup > 0) {

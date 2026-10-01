@@ -76,31 +76,66 @@ export class GameMap {
     return false;
   }
 
+  solidKind(tx, ty) {
+    const c = this.tileChar(tx, ty);
+    if (c === 'T' || c === 'B') return 'trunk';
+    if (c === '#' || c === 'R' || c === 'W') return 'block';
+    if (c === 'E' && !this.exitOpen) return 'block';
+    if (c === 'G' && this.gateClosed) return 'block';
+    return null;
+  }
+
   resolveCircle(ent, r) {
-    for (let i = 0; i < 2; i++) {
-      let px = ent.x;
-      let py = ent.y;
-      const tx = Math.floor(px / TILE);
-      const ty = Math.floor(py / TILE);
-      for (let oy = -1; oy <= 1; oy++) {
-        for (let ox = -1; ox <= 1; ox++) {
-          if (!this.solidAt(tx + ox, ty + oy)) continue;
-          const cx = (tx + ox) * TILE + TILE / 2;
-          const cy = (ty + oy) * TILE + TILE / 2;
-          const dx = px - cx;
-          const dy = py - cy;
-          const rr = r + TILE * 0.42;
-          const d2 = dx * dx + dy * dy;
-          if (d2 >= rr * rr || d2 === 0) continue;
-          const d = Math.sqrt(d2);
-          const push = (rr - d) / d;
-          px = cx + dx * push;
-          py = cy + dy * push;
+    for (let pass = 0; pass < 2; pass++) {
+      const tx0 = Math.floor((ent.x - r) / TILE) - 1;
+      const tx1 = Math.floor((ent.x + r) / TILE) + 1;
+      const ty0 = Math.floor((ent.y - r) / TILE) - 1;
+      const ty1 = Math.floor((ent.y + r) / TILE) + 1;
+      for (let ty = ty0; ty <= ty1; ty++) {
+        for (let tx = tx0; tx <= tx1; tx++) {
+          const kind = this.solidKind(tx, ty);
+          if (!kind) continue;
+          const x = tx * TILE;
+          const y = ty * TILE;
+          if (kind === 'trunk') {
+            const cx = x + TILE / 2;
+            const cy = y + TILE / 2;
+            const rr = r + 13;
+            const dx = ent.x - cx;
+            const dy = ent.y - cy;
+            const d2 = dx * dx + dy * dy;
+            if (d2 >= rr * rr || d2 === 0) continue;
+            const d = Math.sqrt(d2);
+            ent.x = cx + (dx / d) * rr;
+            ent.y = cy + (dy / d) * rr;
+          } else {
+            const cx = clamp(ent.x, x, x + TILE);
+            const cy = clamp(ent.y, y, y + TILE);
+            const dx = ent.x - cx;
+            const dy = ent.y - cy;
+            const d2 = dx * dx + dy * dy;
+            if (d2 >= r * r) continue;
+            if (d2 === 0) {
+              const left = ent.x - x;
+              const right = x + TILE - ent.x;
+              const top = ent.y - y;
+              const bottom = y + TILE - ent.y;
+              const m = Math.min(left, right, top, bottom);
+              if (m === left) ent.x = x - r;
+              else if (m === right) ent.x = x + TILE + r;
+              else if (m === top) ent.y = y - r;
+              else ent.y = y + TILE + r;
+            } else {
+              const d = Math.sqrt(d2);
+              ent.x = cx + (dx / d) * r;
+              ent.y = cy + (dy / d) * r;
+            }
+          }
         }
       }
-      ent.x = clamp(px, r, this.W - r);
-      ent.y = clamp(py, r, this.H - r);
     }
+    ent.x = clamp(ent.x, r, this.W - r);
+    ent.y = clamp(ent.y, r, this.H - r);
   }
 
   update(dt) {
@@ -274,9 +309,13 @@ export class GameMap {
   drawWaterTile(ctx, tx, ty) {
     const x = tx * TILE;
     const y = ty * TILE;
-    ctx.fillStyle = '#5db8d8';
+    ctx.fillStyle = '#4fb0d8';
     ctx.fillRect(x, y, TILE, TILE);
-    const n = (dx, dy) => this.tileChar(tx + dx, ty + dy) === 'W';
+    const waterLike = (dx, dy) => {
+      const c = this.tileChar(tx + dx, ty + dy);
+      return c === 'W' || c === '=';
+    };
+    const n = waterLike;
     if (!n(-1, 0) && !n(0, -1)) {
       ctx.fillStyle = GRASS_BASE;
       ctx.beginPath();
@@ -309,17 +348,87 @@ export class GameMap {
       ctx.closePath();
       ctx.fill();
     }
-    const t = this.time;
-    ctx.fillStyle = 'rgba(255,255,255,0.22)';
-    for (let i = 0; i < 3; i++) {
-      const h = hash2(tx * 3 + i, ty * 7 + i);
-      const ph = (t * (0.5 + h * 0.4) + i) % 1.6;
-      const wx = x + TILE * 0.16 + h * TILE * 0.6;
-      const wy = y + TILE * 0.2 + ph * TILE * 0.55;
+
+    ctx.strokeStyle = 'rgba(238,210,148,0.85)';
+    ctx.lineWidth = 3.5;
+    if (!n(-1, 0)) {
       ctx.beginPath();
-      ctx.ellipse(wx, wy, 7 + h * 5, 2.4, h * TAU, 0, TAU);
+      ctx.moveTo(x + 2, y + 10);
+      ctx.lineTo(x + 2, y + TILE - 10);
+      ctx.stroke();
+    }
+    if (!n(1, 0)) {
+      ctx.beginPath();
+      ctx.moveTo(x + TILE - 2, y + 10);
+      ctx.lineTo(x + TILE - 2, y + TILE - 10);
+      ctx.stroke();
+    }
+    if (!n(0, -1)) {
+      ctx.beginPath();
+      ctx.moveTo(x + 10, y + 2);
+      ctx.lineTo(x + TILE - 10, y + 2);
+      ctx.stroke();
+    }
+    if (!n(0, 1)) {
+      ctx.beginPath();
+      ctx.moveTo(x + 10, y + TILE - 2);
+      ctx.lineTo(x + TILE - 10, y + TILE - 2);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(30,100,140,0.3)';
+    ctx.lineWidth = 1.5;
+    if (!n(-1, 0)) {
+      ctx.beginPath();
+      ctx.moveTo(x + 6, y + 14);
+      ctx.lineTo(x + 6, y + TILE - 14);
+      ctx.stroke();
+    }
+    if (!n(1, 0)) {
+      ctx.beginPath();
+      ctx.moveTo(x + TILE - 6, y + 14);
+      ctx.lineTo(x + TILE - 6, y + TILE - 14);
+      ctx.stroke();
+    }
+    if (!n(0, -1)) {
+      ctx.beginPath();
+      ctx.moveTo(x + 14, y + 6);
+      ctx.lineTo(x + TILE - 14, y + 6);
+      ctx.stroke();
+    }
+    if (!n(0, 1)) {
+      ctx.beginPath();
+      ctx.moveTo(x + 14, y + TILE - 6);
+      ctx.lineTo(x + TILE - 14, y + TILE - 6);
+      ctx.stroke();
+    }
+
+    const t = this.time;
+    for (let i = 0; i < 3; i++) {
+      const h1 = hash2(tx * 3 + i, ty * 7 + i);
+      const h2 = hash2(tx * 11 + i, ty * 17 + i);
+      const cycle = (t * (0.18 + h1 * 0.16) + h2) % 1;
+      const fade = Math.sin(cycle * Math.PI);
+      ctx.globalAlpha = 0.3 * fade;
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.beginPath();
+      ctx.ellipse(
+        x + TILE * (0.18 + h2 * 0.64),
+        y + TILE * (0.16 + cycle * 0.62),
+        7 + h1 * 5,
+        2.6,
+        h2 * TAU,
+        0,
+        TAU
+      );
       ctx.fill();
     }
+    ctx.globalAlpha = 1;
+
+    const band = (t * 10 + hash2(tx, ty) * 100) % (TILE * 1.8);
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.beginPath();
+    ctx.ellipse(x + TILE / 2, y + band, TILE * 0.52, 12, 0, 0, TAU);
+    ctx.fill();
   }
 
   drawBridgeTile(ctx, tx, ty) {

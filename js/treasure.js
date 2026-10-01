@@ -1,11 +1,13 @@
 import { TILE } from './config.js';
 import { TAU, dist, rand } from './utils.js';
+import { petById } from './pets.js';
 
 export class Treasure {
   constructor(level) {
     this.chests = [];
     this.coins = [];
     this.hearts = [];
+    this.petPickups = [];
     for (const c of level.chests || []) {
       this.chests.push({
         x: (c.tx + 0.5) * TILE,
@@ -44,6 +46,21 @@ export class Treasure {
       c.vy = 0;
     }
     this.hearts.length = 0;
+    this.petPickups.length = 0;
+  }
+
+  dropPet(x, y, petId) {
+    this.petPickups.push({
+      x,
+      y,
+      petId,
+      vx: rand(-90, 90),
+      vy: rand(-200, -90),
+      taken: false,
+      life: 30,
+      phase: rand(TAU),
+      scatterT: 0.6,
+    });
   }
 
   dropCoin(x, y, n) {
@@ -88,6 +105,8 @@ export class Treasure {
         game.player.heal(30);
         game.player.coins += 50;
         game.score += 150;
+        const pet = game.randomUnownedPet();
+        if (pet) this.dropPet(c.x, c.y - 10, pet.id);
         if (game.ui) game.ui.flashCoinPop();
         return true;
       }
@@ -144,6 +163,38 @@ export class Treasure {
         game.texts.add(h.x, h.y - 20, '+12 ❤', '#ff9b9b', 14, 0.8);
       }
     }
+    for (const pk of this.petPickups) {
+      if (pk.taken) continue;
+      pk.phase += dt;
+      pk.life -= dt;
+      if (pk.scatterT > 0) {
+        pk.scatterT -= dt;
+        pk.x += pk.vx * dt;
+        pk.y += pk.vy * dt;
+        pk.vy += 700 * dt;
+      }
+      if (pk.life <= 0) {
+        pk.taken = true;
+        continue;
+      }
+      if (dist(pk.x, pk.y, player.x, player.y) < player.r + 20) {
+        pk.taken = true;
+        const isNew = player.collectPet(pk.petId);
+        if (isNew) {
+          game.pet.sparkle();
+          game.audio.chest();
+          game.particles.sparks(pk.x, pk.y, '#ffe9a0', 22, 220);
+          game.particles.ring(pk.x, pk.y, '#ffe9a0', 30, 0.6);
+          const def = petById(pk.petId);
+          game.texts.add(pk.x, pk.y - 26, '获得宠物 ' + def.emoji + ' ' + def.name + '！', '#ffe9a0', 16, 1.6);
+          if (game.ui) game.ui.flashCoinPop();
+        } else {
+          player.coins += 8;
+          game.audio.coin();
+          game.texts.add(pk.x, pk.y - 20, '已拥有 · +8 🪙', '#ffe9a0', 13, 0.9);
+        }
+      }
+    }
   }
 
   draw(ctx, time) {
@@ -192,6 +243,30 @@ export class Treasure {
       ctx.beginPath();
       ctx.arc(-3, -4, 2, 0, TAU);
       ctx.fill();
+      ctx.restore();
+    }
+    for (const pk of this.petPickups) {
+      if (pk.taken) continue;
+      const flicker = pk.life < 3 && Math.floor(time * 8) % 2 === 0;
+      if (flicker) continue;
+      const bob = Math.sin(time * 3 + pk.phase) * 5;
+      const def = petById(pk.petId);
+      ctx.save();
+      ctx.translate(pk.x, pk.y + bob);
+      const pulse = 1 + Math.sin(time * 5 + pk.phase) * 0.12;
+      ctx.fillStyle = 'rgba(255,233,160,0.35)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 20 * pulse, 0, TAU);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,215,106,0.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 16 * pulse, 0, TAU);
+      ctx.stroke();
+      ctx.font = '26px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(def.emoji, 0, 0);
       ctx.restore();
     }
   }
