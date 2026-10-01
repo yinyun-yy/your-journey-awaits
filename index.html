@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1f8f78">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Your Journey Awaits - 2D 网页闯关冒险游戏。选择你的旅行者，探索起源之地，击败遗迹守卫，完成你的第一段旅程。">
+<title>Your Journey Awaits · 起源之地</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="hud-left" class="glass">
+    <div class="name-row">
+      <span id="hud-name">旅行者</span>
+      <span class="stage-chip">起源之地</span>
+    </div>
+    <div class="bar hp-bar"><span class="bar-ico">❤</span><div id="hud-hp-fill" class="fill hp-fill"></div></div>
+    <div class="bar st-bar"><span class="bar-ico">⚡</span><div id="hud-stamina-fill" class="fill st-fill"></div></div>
+  </div>
+  <div id="hud-right">
+    <div class="glass hud-coins" id="hud-coins">🪙 0</div>
+    <button id="btn-pause" class="icon-btn glass" aria-label="暂停">⏸</button>
+  </div>
+
+  <div id="boss-bar" class="hidden">
+    <div class="boss-name" id="boss-name">遗迹守卫</div>
+    <div class="bar boss-hp"><div id="boss-hp-fill" class="fill boss-fill"></div></div>
+  </div>
+
+  <div id="touch-controls" class="hidden">
+    <div id="joy-zone">
+      <div id="joy-base"></div>
+      <div id="joy-knob"></div>
+    </div>
+    <div id="action-cluster">
+      <button id="btn-skill1" class="abil-btn" aria-label="技能1">
+        <span class="abil-ico">✦</span>
+        <span class="abil-name">技能1</span>
+        <div class="cd-fill"></div>
+        <div class="cd-label"></div>
+      </button>
+      <button id="btn-attack" class="abil-btn big" aria-label="普攻">
+        <span class="abil-ico">⚔</span>
+        <div class="cd-fill"></div>
+        <div class="cd-label"></div>
+      </button>
+      <button id="btn-skill2" class="abil-btn" aria-label="技能2">
+        <span class="abil-ico">✧</span>
+        <span class="abil-name">技能2</span>
+        <div class="cd-fill"></div>
+        <div class="cd-label"></div>
+      </button>
+      <button id="btn-boost" aria-label="加速">⚡</button>
+    </div>
+  </div>
+
+  <div id="pc-hints" class="hidden">
+    <div class="hint-pc">WASD 移动 · 鼠标瞄准 · J 普攻 · K 技能1 · L 技能2 · Space 加速 · ESC 暂停</div>
+  </div>
+  <div id="pc-abil-bar" class="hidden">
+    <button id="pc-attack" class="pc-abil">J · 普攻<div class="cd-fill"></div><div class="cd-label"></div></button>
+    <button id="pc-skill1" class="pc-abil">K · <span id="pc-s1-name">技能1</span><div class="cd-fill"></div><div class="cd-label"></div></button>
+    <button id="pc-skill2" class="pc-abil">L · <span id="pc-s2-name">技能2</span><div class="cd-fill"></div><div class="cd-label"></div></button>
+  </div>
+</div>
+
+<div id="banner" class="hidden">
+  <div class="banner-main">BANNER</div>
+  <div class="banner-sub"></div>
+</div>
+
+<div id="intro" class="overlay">
+  <div class="intro-card glass-strong">
+    <div class="intro-logo">🧭</div>
+    <h1 class="title">Your Journey Awaits</h1>
+    <p class="subtitle">你的故事，即将开始</p>
+    <div class="name-row2">
+      <label for="name-input">请输入你的名字</label>
+      <input id="name-input" maxlength="12" placeholder="请输入名称……" autocomplete="off">
+      <div id="name-err" class="err-text"></div>
+    </div>
+    <button class="btn btn-primary" id="btn-start">开始冒险</button>
+    <button class="btn btn-ghost hidden" id="btn-continue"><span id="continue-label">继续旅程</span></button>
+    <div id="intro-best" class="intro-best"></div>
+    <div class="intro-settings">
+      <label class="toggle-row"><span>🎵 音乐</span><input type="checkbox" id="set-bgm"></label>
+      <label class="toggle-row"><span>🔊 音效</span><input type="checkbox" id="set-sfx"></label>
+    </div>
+    <p class="menu-hint">支持中文 / 英文 / 数字 · 1～12 个字符</p>
+  </div>
+</div>
+
+<div id="select" class="overlay hidden passthrough">
+  <div class="select-top glass-strong">
+    <div class="select-title">选择你的旅行者</div>
+    <div class="select-sub">旅人 <b id="select-name">旅行者</b> · <button id="btn-edit-name" class="link-btn">修改昵称</button></div>
+  </div>
+  <div class="select-bottom">
+    <div id="char-info" class="glass-strong hidden">
+      <div class="char-name" id="char-name"></div>
+      <div class="char-title" id="char-title"></div>
+      <div class="char-desc" id="char-desc"></div>
+      <div class="char-weapon" id="char-weapon"></div>
+    </div>
+    <button id="btn-journey" class="btn btn-primary disabled">开始旅程</button>
+  </div>
+</div>
+
+<div id="pause" class="overlay hidden">
+  <div class="modal glass-strong">
+    <h2>旅程暂停</h2>
+    <div class="btn-col">
+      <button id="btn-resume" class="btn btn-primary">继续</button>
+      <button id="btn-rename" class="btn btn-ghost">✎ 修改昵称</button>
+      <button id="btn-restart" class="btn btn-ghost">重新开始</button>
+      <button id="btn-home" class="btn btn-ghost">返回主页</button>
+    </div>
+  </div>
+</div>
+
+<div id="name-edit" class="overlay hidden">
+  <div class="modal glass-strong">
+    <h2>修改昵称</h2>
+    <input id="rename-input" maxlength="12" placeholder="请输入名称……" autocomplete="off">
+    <div id="rename-err" class="err-text"></div>
+    <div class="btn-row">
+      <button id="btn-rename-ok" class="btn btn-primary">确定</button>
+      <button id="btn-rename-cancel" class="btn btn-ghost">取消</button>
+    </div>
+  </div>
+</div>
+
+<div id="gameover" class="overlay hidden">
+  <div class="modal glass-strong">
+    <h2 id="go-title">你在起源之地倒下了…</h2>
+    <p id="go-sub"></p>
+    <div class="btn-col">
+      <button id="btn-restart2" class="btn btn-primary">重新开始</button>
+      <button id="btn-home2" class="btn btn-ghost">返回主页</button>
+    </div>
+  </div>
+</div>
+
+<div id="victory" class="overlay hidden">
+  <div class="modal glass-strong">
+    <div class="v-crown">🏆</div>
+    <h2 id="v-title">关卡完成</h2>
+    <p id="v-sub" class="go-sub"></p>
+    <p id="v-record" class="go-sub hidden">新纪录！</p>
+    <div class="stats-grid">
+      <div class="stat"><b id="v-time">0:00</b><span>用时</span></div>
+      <div class="stat"><b id="v-kills">0</b><span>击败敌人</span></div>
+      <div class="stat"><b id="v-coins">0</b><span>金币</span></div>
+      <div class="stat"><b id="v-score">0</b><span>得分</span></div>
+      <div class="stat"><b id="v-best">—</b><span>最快纪录</span></div>
+      <div class="stat"><b id="v-name">—</b><span>旅人</span></div>
+    </div>
+    <div class="btn-col">
+      <button id="btn-victory-again" class="btn btn-primary">再玩一次</button>
+      <button id="btn-victory-home" class="btn btn-ghost">返回主页</button>
+    </div>
+  </div>
+</div>
+
+<div id="bootinfo"></div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

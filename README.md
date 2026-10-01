@@ -1,0 +1,130 @@
+# Your Journey Awaits 🧭
+
+> 「你的故事，即将开始。」
+
+一个纯前端的 2D 网页闯关冒险游戏：输入你的名字，选择一位原创旅行者，
+进入比屏幕更大的「起源之地」，探索地图、战斗、寻找隐藏宝箱，
+击败遗迹守卫，完成你的第一段旅程。
+
+## 核心玩法
+
+```
+输入昵称 → 选择旅行者 → 进入起源之地 → 探索地图
+→ 普攻 / 技能1 / 技能2 → 击败敌人 → 隐藏区域宝箱
+→ 挑战遗迹守卫 → 出口开启 → 到达出口 → 关卡完成
+```
+
+## 两位原创旅行者
+
+| | Aster · 疾风旅人 | Liora · 星语者 |
+| --- | --- | --- |
+| 定位 | 近战 · 灵活 | 远程 · 控制 |
+| 武器 | 短刃 · 旅风 | 星杖 · 暮星 |
+| 普攻 | 短刃连斩（三段连击） | 星矢（能量弹） |
+| 技能1 | 疾行斩（冲刺斩击） | 星落（远程落星爆炸） |
+| 技能2 | 旋刃（范围斩击） | 星环（扩散星环） |
+
+## 操作
+
+| 平台 | 移动 | 普攻 | 技能1 | 技能2 | 加速 |
+| --- | --- | --- | --- | --- | --- |
+| 电脑 | WASD / 方向键 | J（鼠标瞄准） | K | L | Space 按住 |
+| 手机 | 左下虚拟摇杆 | 右下 ⚔ | ✦ 按钮 | ✧ 按钮 | ⚡ 按钮按住 |
+
+电脑按 `ESC` / `P` 暂停。手机建议横屏游玩。
+
+## 地图：起源之地
+
+- 地图比屏幕更大，摄像机跟随角色
+- 起点安全区 → 中央岔路 → 西部森林（隐藏宝箱）→ 东部河流战场 → 北部遗迹 Boss 区
+- 敌人：苔壳兽（近战）、晶露灵（远程）、遗迹守卫（Boss，二阶段狂暴）
+
+## 本地运行
+
+```bash
+# 方式一：Python
+python -m http.server 8000
+
+# 方式二：Node.js（自带 server.js）
+node server.js
+```
+
+然后打开 http://localhost:8000
+
+> 游戏使用 ES Modules，必须通过 HTTP 服务器运行，不能直接双击 index.html。
+
+## 部署到公网
+
+### 方式一：临时分享（电脑要开着，双击即用）
+
+双击 `tunnel.bat`（需 Windows 自带 ssh + python），窗口里会出现一个
+`https://xxxx.lhr.life` 网址，直接发给朋友即可在手机上玩。
+关闭窗口或关机后网址失效。
+
+### 方式二：永久部署（电脑关机也能玩，免费）
+
+**Cloudflare Pages（推荐）**
+
+1. 用 GitHub Desktop 把本项目发布到 GitHub
+2. 打开 https://dash.cloudflare.com → Workers & Pages → Create → Pages
+3. Connect to Git 选择仓库，Build command 留空，Output directory 填 `/`，点 Deploy
+4. 完成即可获得 `https://xxx.pages.dev` 网址，永久有效
+
+**GitHub Pages（备选）**
+
+1. 发布仓库到 GitHub
+2. 仓库页面 → Settings → Pages → Source 选 `main` 分支根目录 → Save
+
+## PWA
+
+支持「添加到主屏幕」：部署到 HTTPS 后，手机浏览器菜单选择「添加到主屏幕」，
+即可像 App 一样打开（含离线缓存）。
+
+## 项目结构
+
+```
+Your Journey Awaits/
+├── index.html            # 页面结构 + 开场/选人/HUD/结算 UI 容器
+├── css/style.css         # 全部样式与动画
+├── js/
+│   ├── main.js           # 入口：启动、循环、resize、PWA 注册
+│   ├── game.js           # 游戏状态机：场景、战斗编排、Boss、通关
+│   ├── config.js         # 地图布局、角色表、技能表、敌人表、平衡参数
+│   ├── map.js            # 瓦片地图：绘制、碰撞、大门、出口
+│   ├── characters.js     # 两位原创角色立绘（Aster / Liora）
+│   ├── player.js         # 旅行者：移动、两套攻击与技能机制
+│   ├── enemies.js        # 苔壳兽 / 晶露灵 / 遗迹守卫 AI 与绘制
+│   ├── projectiles.js    # 投射物 + 斩击/星环/冲击波特效
+│   ├── treasure.js       # 宝箱、金币、爱心掉落
+│   ├── ui.js             # 开场、选人、HUD、暂停、结算
+│   ├── input.js          # 键盘/鼠标/虚拟摇杆/技能按钮
+│   ├── audio.js          # Web Audio 程序化音效与 BGM
+│   ├── camera.js         # 跟随镜头 + 缩放 + 震动
+│   ├── particles.js      # 粒子对象池 + 飘字
+│   ├── storage.js        # 昵称/角色/纪录存档
+│   └── utils.js          # 数学工具
+├── icons/                # PWA 图标
+├── scripts/              # 图标生成、CDP 自动化测试、隧道
+├── manifest.json         # PWA 清单
+├── sw.js                 # Service Worker（离线缓存）
+├── server.js             # 零依赖 Node 静态服务器
+└── README.md
+```
+
+## 常见自定义修改
+
+所有可调参数集中在 `js/config.js`：
+
+| 想改什么 | 位置 |
+| --- | --- |
+| 地图布局 | `LEVELS[0].rows`（40×30 字符画，# 墙 T 树 W 水 p 路 b 竞技场 G 门 E 出口 S 出生点） |
+| 敌人属性 / 数量 | `ENEMIES` / `LEVELS[0].enemies` |
+| 角色技能数值 | `SKILLS` |
+| 玩家速度 / 血量 | `CONFIG.player` |
+| 角色外观 | `js/characters.js` 的 `drawAster()` / `drawLiora()` |
+| 新增地图 / 角色 | `LEVELS` / `CHARACTERS` 数组加一条即可 |
+
+## 后续扩展方向
+
+第二张地图、更多旅行者角色、更多敌人与 Boss、装备、成就、宠物、
+皮肤、玩家档案、多人排行榜、云端存档 —— 代码结构已预留扩展接口。
